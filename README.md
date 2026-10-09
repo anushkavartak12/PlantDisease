@@ -100,13 +100,105 @@ open the `https://<your-pc-ip>:5173` address it prints on your phone (same Wi-Fi
   installed).
 
 ### Accuracy
-Validation accuracy **98.7%** on 1,853 held-out images (15 epochs on a Colab T4 GPU).
+Held-out validation (2,118 images, split at random from the training data):
+
+| | Overall | Field photos only (824) |
+|---|---|---|
+| Disease / condition | **94.5%** | **89.6%** |
+| Leaf type (which crop, or "other") | **98.5%** | **97.0%** |
+
+"Field photos" are phone-camera shots with real backgrounds (leaf still on the plant, soil, grass, hands).
+The previous model (trained mostly on plain-background photos) scored 98.7% on its own clean validation set but
+only **25.4% disease accuracy and 62.5% leaf-type accuracy on these same field photos**. That gap is why it could
+not read a leaf still on the plant. The current model is trained with real field photos from seven datasets and with
+**background swapping**: lab photos get their plain backdrop replaced by real field backgrounds during training.
+One run of 15 epochs on a local RTX 2050 (about 45 minutes).
 
 <details>
 <summary>Per-class validation accuracy</summary>
 
 | Crop | Condition | Accuracy |
 |---|---|---|
+| Cotton | alternaria leaf spot | 84.0% |
+| Cotton | bacterial blight | 98.6% |
+| Cotton | fusarium wilt | 100.0% |
+| Cotton | healthy | 100.0% |
+| Cotton | verticillium wilt | 95.7% |
+| Other | unsupported plant | 86.7% |
+| Rice | bacterial leaf blight | 97.1% |
+| Rice | blast | 93.3% |
+| Rice | brown spot | 92.4% |
+| Rice | healthy | 100.0% |
+| Rice | tungro | 92.4% |
+| Soybean | bacterial blight | 97.9% |
+| Soybean | frogeye leaf spot | 95.7% |
+| Soybean | healthy | 96.2% |
+| Soybean | rust | 95.7% |
+| Sugarcane | healthy | 100.0% |
+| Sugarcane | mosaic | 95.8% |
+| Sugarcane | red rot | 98.1% |
+| Sugarcane | rust | 100.0% |
+| Sugarcane | yellow leaf | 96.6% |
+| Tomato | bacterial spot | 85.0% |
+| Tomato | early blight | 91.1% |
+| Tomato | healthy | 97.8% |
+| Tomato | late blight | 93.3% |
+| Tomato | leaf curl | 97.1% |
+| Tomato | leaf mold | 73.8% |
+| Tomato | mosaic virus | 78.9% |
+| Tomato | septoria leaf spot | 89.3% |
+</details>
+
+> ⚠️ **Honest limits.** Validation images are split at random from the same datasets as training, so near-duplicates
+> can inflate the score, and ~90% on field photos is an optimistic estimate of how it does on your own phone photos.
+> Cotton (fusarium, verticillium, alternaria), sugarcane (red rot, mosaic) and soybean (rust, frogeye, bacterial
+> blight) have **no field photos at all** and rely on background swapping, and tomato leaf mould, mosaic virus and
+> bacterial spot are the weakest conditions. The "other" class has no non-leaf examples (hands, soil), and the app
+> centre-crops, so fill the frame with one leaf. The app shows its confidence and asks for a retake when unsure.
+> It is a learning and first-aid tool, **not** a lab diagnosis: confirm with your local Krishi Vigyan Kendra before
+> spraying.
+
+---|---|---|
+| Cotton | alternaria leaf spot | 84.0% |
+| Cotton | bacterial blight | 98.6% |
+| Cotton | fusarium wilt | 98.0% |
+| Cotton | healthy | 100.0% |
+| Cotton | verticillium wilt | 97.8% |
+| Other | unsupported plant | 94.7% |
+| Rice | bacterial leaf blight | 97.3% |
+| Rice | blast | 89.3% |
+| Rice | brown spot | 93.3% |
+| Rice | healthy | 100.0% |
+| Rice | tungro | 100.0% |
+| Soybean | bacterial blight | 100.0% |
+| Soybean | frogeye leaf spot | 100.0% |
+| Soybean | healthy | 97.3% |
+| Soybean | rust | 97.9% |
+| Sugarcane | healthy | 97.3% |
+| Sugarcane | mosaic | 100.0% |
+| Sugarcane | red rot | 92.6% |
+| Sugarcane | rust | 94.7% |
+| Sugarcane | yellow leaf | 97.3% |
+| Tomato | bacterial spot | 84.0% |
+| Tomato | early blight | 76.7% |
+| Tomato | healthy | 94.7% |
+| Tomato | late blight | 95.9% |
+| Tomato | leaf curl | 97.3% |
+| Tomato | leaf mold | 85.7% |
+| Tomato | mosaic virus | 73.7% |
+| Tomato | septoria leaf spot | 94.7% |
+</details>
+
+> ⚠️ **Honest limits.** Validation images are split at random from the same datasets as training, so near-duplicates
+> can inflate the score, and 87% on field photos is an optimistic estimate of how it does on your own phone photos.
+> Some classes (rice tungro, soybean rust/frogeye/bacterial blight, sugarcane red rot/mosaic, cotton fusarium/
+> verticillium/alternaria) have **no field photos at all** and rely on background swapping, which works on white-sheet
+> photos but does not yet trigger on PlantVillage's shadowed grey backdrops (most tomato training images). The "other" class has
+> no non-leaf examples (hands, soil), and the app centre-crops, so fill the frame with one leaf. The app shows its
+> confidence and asks for a retake when unsure. It is a learning and first-aid tool, **not** a lab diagnosis:
+> confirm with your local Krishi Vigyan Kendra before spraying.
+
+---|---|---|
 | Cotton | alternaria leaf spot | 84.0% |
 | Cotton | bacterial blight | 96.9% |
 | Cotton | fusarium wilt | 98.0% |
@@ -193,11 +285,18 @@ hand-drawn SVG · Baloo 2 font (Latin + Devanagari) · PyTorch · timm · Google
 | Cotton (healthy, bacterial blight, alternaria, fusarium wilt, verticillium wilt) | [Project-AgML/cotton_leaf_disease_classification](https://huggingface.co/datasets/Project-AgML/cotton_leaf_disease_classification) |
 | Soybean (healthy, rust, bacterial blight, frogeye) | [anandvermagmailcom/soybean-leaf-diseases](https://huggingface.co/datasets/anandvermagmailcom/soybean-leaf-diseases) |
 | Rice (healthy, blast, bacterial leaf blight, brown spot, tungro) | [sharmin3/Rice-Leaf-Disease](https://huggingface.co/datasets/sharmin3/Rice-Leaf-Disease) |
+| Field photos (tomato, soybean healthy, other plants) | [Project-AgML/plant_doc_classification](https://huggingface.co/datasets/Project-AgML/plant_doc_classification) (PlantDoc, CC BY-SA 4.0) |
+| Field photos: rice | [Project-AgML/rice_leaf_disease_classification_bd](https://huggingface.co/datasets/Project-AgML/rice_leaf_disease_classification_bd) (CC BY 4.0) |
+| Field photos: rice (more) | [Project-AgML/paddy_disease_classification](https://huggingface.co/datasets/Project-AgML/paddy_disease_classification) (Paddy Doctor, **no licence stated**: training only, not in the shipped reference photos), [rice_leaf_disease_classification_2](https://huggingface.co/datasets/Project-AgML/rice_leaf_disease_classification_2) and [rice_disease_classification_bangladesh](https://huggingface.co/datasets/Project-AgML/rice_disease_classification_bangladesh) (CC BY 4.0) |
+| Field photos: soybean | [Project-AgML/soybean_leaf_disease_classification_brazil](https://huggingface.co/datasets/Project-AgML/soybean_leaf_disease_classification_brazil) (healthy leaves, CC BY 4.0) |
+| Field photos: tomato | [Tomato-Village](https://github.com/mamta-joshi-gehlot/Tomato-Village) (Gehlot et al., *Multimedia Systems* 2023, [doi:10.1007/s00530-023-01158-y](https://doi.org/10.1007/s00530-023-01158-y); **no licence declared**: training only, not in the shipped reference photos) |
+| Field photos: cotton | [Project-AgML/cotton_leaf_disease_classification_bangladesh_2](https://huggingface.co/datasets/Project-AgML/cotton_leaf_disease_classification_bangladesh_2) (CC BY 4.0) |
+| Field photos: sugarcane | [Project-AgML/sugarcane_leaf_disease_classification](https://huggingface.co/datasets/Project-AgML/sugarcane_leaf_disease_classification) (CC BY 4.0) |
 | Tomato conditions, healthy soybean, "other plant" class | [BrandonFors/Plant-Diseases-PlantVillage-Dataset](https://huggingface.co/datasets/BrandonFors/Plant-Diseases-PlantVillage-Dataset) (PlantVillage) |
 
 PlantVillage reference: Hughes & Salathé, *An open access repository of images on plant health to enable the
 development of mobile disease diagnostics* (2015), [arXiv:1511.08060](https://arxiv.org/abs/1511.08060).
-Check each dataset's licence before commercial use.
+Check each dataset's licence before commercial use. Paddy Doctor and Tomato-Village state none: ask their authors before publishing the model commercially.
 
 ### Model and libraries
 - MobileNetV3: Howard et al., *Searching for MobileNetV3* (2019), [arXiv:1905.02244](https://arxiv.org/abs/1905.02244)

@@ -11,3 +11,4 @@ training/runs/
 *.pth
 *.tsbuildinfo
 training/*.log
+training/.venv/

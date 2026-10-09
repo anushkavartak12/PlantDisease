@@ -15,8 +15,8 @@ uv venv -p 3.11 .venv
 uv pip install -p .venv torch torchvision --index-url https://download.pytorch.org/whl/cpu
 uv pip install -p .venv timm onnx pillow tqdm
 
-sh download.sh                                     # ~565 MB of raw data
-.venv/Scripts/python prepare.py --per-class 400
+sh download.sh                                     # ~5 GB of raw data (slow links: it takes a while; files resume)
+.venv/Scripts/python prepare.py --per-class 700
 .venv/Scripts/python train.py --epochs 10
 .venv/Scripts/python export.py
 ```
@@ -30,7 +30,9 @@ sh download.sh                                     # ~565 MB of raw data
 | Soybean | healthy, rust, bacterial blight, frogeye | `anandvermagmailcom/soybean-leaf-diseases` (+ PlantVillage healthy) |
 | Rice | healthy, blast, bacterial leaf blight, brown spot, tungro | `sharmin3/Rice-Leaf-Disease` |
 | Tomato | healthy, early blight, late blight, leaf curl, septoria, bacterial spot, mosaic, leaf mould | PlantVillage (`BrandonFors/Plant-Diseases-PlantVillage-Dataset`, test split) |
-| Other | leaves of unsupported plants | PlantVillage (apple, grape, corn, potato, …) |
+| Other | leaves of unsupported plants | PlantVillage + PlantDoc (apple, grape, corn, potato, …) |
+| Field photos | tomato, soybean healthy, other | PlantDoc (`Project-AgML/plant_doc_classification`) |
+| Field photos | rice (+ Paddy Doctor, 2 more), cotton, sugarcane, soybean healthy (Brazil), tomato (Tomato-Village, via git sparse checkout) | `Project-AgML/rice_leaf_disease_classification_bd`, `…/cotton_leaf_disease_classification_bangladesh_2`, `…/sugarcane_leaf_disease_classification` |
 
 Check each dataset's licence before commercial use.
 
@@ -39,5 +41,7 @@ MobileNetV3-Large (ImageNet-pretrained, `timm`) fine-tuned at 224 px with strong
 The export has two outputs: `logits` for the diagnosis and an L2-normalised `embedding` used to find the most similar
 reference photos in the app. Per-class validation accuracy is saved to `runs/metrics.json`.
 
-**Caveat:** most source photos are close-ups on plain or field backgrounds. Accuracy on real phone photos will be
+**Background swap.** Lab photos (PlantVillage, white-sheet rice) have their plain backdrop detected and replaced by real field backgrounds while training (`--swap-p`), and field photos are oversampled (`--field-repeat`). `train.py` reports accuracy on field photos separately, plus leaf-type (crop) accuracy, and picks the best epoch using it. On a small machine keep `--workers 2` (each worker costs ~500 MB).
+
+**Caveat:** some source photos are close-ups on plain or field backgrounds. Accuracy on real phone photos will be
 lower than the validation number, so the app shows its confidence and asks for a retake when unsure.

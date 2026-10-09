@@ -77,7 +77,8 @@ def main():
             prob = logits.softmax(1)
             for j, i in enumerate(chunk):
                 y = ds.samples[i][1]
-                if prob[j].argmax().item() == y:
+                # images from datasets with no stated licence are used to train but never shipped as thumbnails
+                if prob[j].argmax().item() == y and "nolic" not in Path(ds.samples[i][0]).name:
                     scored[y].append((prob[j, y].item(), i, emb[j].numpy()))
 
     shutil.rmtree(REFS, ignore_errors=True)

@@ -6,6 +6,7 @@ Class ids must match app/src/data/crops.ts.
 
 import argparse
 import io
+import json
 import random
 import re
 import shutil
@@ -58,8 +59,92 @@ def pv_class(name: str) -> str | None:
     return OTHER
 
 
+PLANTDOC_NAMES = [
+    "Apple Scab Leaf", "Apple leaf", "Apple rust leaf", "Bell_pepper leaf", "Bell_pepper leaf spot", "Blueberry leaf",
+    "Cherry leaf", "Corn Gray leaf spot", "Corn leaf blight", "Corn rust leaf", "Peach leaf", "Potato leaf early blight",
+    "Potato leaf late blight", "Raspberry leaf", "Soyabean leaf", "Squash Powdery mildew leaf", "Strawberry leaf",
+    "Tomato Early blight leaf", "Tomato Septoria leaf spot", "Tomato leaf", "Tomato leaf bacterial spot",
+    "Tomato leaf late blight", "Tomato leaf mosaic virus", "Tomato leaf yellow virus", "Tomato mold leaf",
+    "Tomato two spotted spider mites leaf", "grape leaf", "grape leaf black rot",
+]
+PD_MAP = {
+    "Tomato Early blight leaf": "tomato___early_blight", "Tomato Septoria leaf spot": "tomato___septoria_leaf_spot",
+    "Tomato leaf": "tomato___healthy", "Tomato leaf bacterial spot": "tomato___bacterial_spot",
+    "Tomato leaf late blight": "tomato___late_blight", "Tomato leaf mosaic virus": "tomato___mosaic_virus",
+    "Tomato leaf yellow virus": "tomato___leaf_curl", "Tomato mold leaf": "tomato___leaf_mold",
+    "Soyabean leaf": "soybean___healthy",
+}
+
+
+def pd_class(name: str) -> str | None:
+    if name in PD_MAP:
+        return PD_MAP[name]
+    return None if name.startswith("Tomato") else OTHER  # spider mites: not covered
+
+
+# Real photos with natural backgrounds (phone cameras, fields). Taken first and prefixed "field_" so that
+# train.py can oversample them, build a background-swap pool from them and report accuracy on them separately.
+FIELD = {
+    "plantdoc_0.parquet": (PLANTDOC_NAMES, pd_class),
+    "plantdoc_1.parquet": (PLANTDOC_NAMES, pd_class),
+    "rice_bd.parquet": (["bacterial_leaf_blight", "brown_spot", "healthy", "leaf_blast", "leaf_scald",
+                         "narrow_brown_spot"], {
+        "bacterial_leaf_blight": "rice___bacterial_leaf_blight", "brown_spot": "rice___brown_spot",
+        "healthy": "rice___healthy", "leaf_blast": "rice___blast"}.get),
+    "cotton_bd.parquet": (["Bacterial Blight", "Curl Virus", "Healthy Leaf", "Herbicide Growth Damage",
+                           "Leaf Hopper Jassids", "Leaf Redding", "Leaf Variegation"], {
+        "Bacterial Blight": "cotton___bacterial_blight", "Healthy Leaf": "cotton___healthy"}.get),
+    "sugarcane_2_0.parquet": (SUGARCANE2 := ["Banded Chlorosis", "Brown Spot", "BrownRust", "Dried", "Grassy shoot",
+                                             "Healthy", "Pokkah Boeng", "Sett Rot", "Smut", "Viral Disease",
+                                             "Yellow Leaf"], {
+        "Healthy": "sugarcane___healthy", "BrownRust": "sugarcane___rust",
+        "Yellow Leaf": "sugarcane___yellow_leaf"}.get),
+    "sugarcane_2_1.parquet": (SUGARCANE2, {
+        "Healthy": "sugarcane___healthy", "BrownRust": "sugarcane___rust",
+        "Yellow Leaf": "sugarcane___yellow_leaf"}.get),
+}
+
+# Round 2. names=None: read the class names from the parquet's own Hugging Face metadata.
+def _m(d):
+    return d.get
+
+
+FIELD.update({
+    **{f"paddy_{k}.parquet": (None, _m({
+        "bacterial_leaf_blight": "rice___bacterial_leaf_blight", "blast": "rice___blast",
+        "brown_spot": "rice___brown_spot", "normal": "rice___healthy", "tungro": "rice___tungro"})) for k in (0, 1)},
+    **{f"rice2_{k}.parquet": (None, _m({
+        "Bacterial leaf blight": "rice___bacterial_leaf_blight", "Brown spot": "rice___brown_spot",
+        "Leaf Blast": "rice___blast"})) for k in (0, 1)},
+    **{f"ricebd2_{k}.parquet": (None, _m({
+        "Healthy": "rice___healthy", "Rice Blast": "rice___blast", "Rice Tungro": "rice___tungro"})) for k in (0, 1)},
+    **{f"dhan_{k}.parquet": (None, _m({
+        "Brown Spot": "rice___brown_spot", "Browon Spot": "rice___brown_spot", "Rice Blast": "rice___blast",
+        "Rice Tungro": "rice___tungro", "Rice Turgro": "rice___tungro"})) for k in (0, 1)},
+    **{f"cotton2_{k}.parquet": (None, _m({
+        "Alternaria": "cotton___alternaria_leaf_spot", "Bacterial Blight": "cotton___bacterial_blight",
+        "Healthy": "cotton___healthy"})) for k in (0, 1, 2)},
+    **{f"soybean_br_{k}.parquet": (None, _m({"Healthy": "soybean___healthy"})) for k in (0, 1)},
+    **{f"soybean2_{k}.parquet": (None, _m({
+        "Bacterial leaf Blight": "soybean___bacterial_blight", "Healthy": "soybean___healthy"})) for k in range(6)},
+})
+
+# Sources with no stated licence. Used for training only: export.py keeps them out of the shipped reference photos.
+NOLIC = {"paddy_0.parquet", "paddy_1.parquet"}
+TOMATO_VILLAGE = {"Early_blight": "tomato___early_blight", "Healthy": "tomato___healthy",
+                  "Late_blight": "tomato___late_blight"}
+
+
+def hf_names(path: Path) -> list[str]:
+    """Class names stored in a Hugging Face parquet file's metadata."""
+    meta = pq.read_schema(path).metadata or {}
+    feats = json.loads(meta[b"huggingface"])["info"]["features"]
+    return feats["label"]["names"]
+
+
 # parquet file -> (label names, label -> class id)
 PARQUETS = {
+    **FIELD,
     "sugarcane.parquet": (["Healthy", "Mosaic", "RedRot", "Rust", "Yellow"], {
         "Healthy": "sugarcane___healthy", "RedRot": "sugarcane___red_rot", "Rust": "sugarcane___rust",
         "Mosaic": "sugarcane___mosaic", "Yellow": "sugarcane___yellow_leaf"}.get),
@@ -95,7 +180,8 @@ def save(data: bytes, dest: Path) -> bool:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--per-class", type=int, default=400)
+    ap.add_argument("--per-class", type=int, default=700)
+    ap.add_argument("--field-share", type=float, default=0.7, help="max fraction of a class taken from field photos")
     ap.add_argument("--other-per-label", type=int, default=20)
     ap.add_argument("--raw", type=Path, default=RAW)
     args = ap.parse_args()
@@ -104,22 +190,40 @@ def main():
     counts: dict[str, int] = defaultdict(int)
     other_counts: dict[str, int] = defaultdict(int)
 
-    def take(cls: str | None, src_label: str, data: bytes, name: str) -> None:
+    field_counts: dict[str, int] = defaultdict(int)
+    source_counts: dict[tuple[str, str], int] = defaultdict(int)
+
+    def take(cls: str | None, src_label: str, data: bytes, name: str, group: str = "") -> None:
         if cls is None or counts[cls] >= args.per_class:
             return
+        is_field = name.startswith("field_")
+        if is_field:
+            cap = args.per_class * args.field_share
+            # no single dataset may fill more than half the field quota of a class
+            if field_counts[cls] >= cap or source_counts[cls, group] >= cap / 2:
+                return
         if cls == OTHER:
             if other_counts[src_label] >= args.other_per_label:
                 return
             other_counts[src_label] += 1
         if save(data, OUT / cls / name):
             counts[cls] += 1
+            field_counts[cls] += is_field
+            source_counts[cls, group] += 1
 
     for fname, (names, mapper) in PARQUETS.items():
         path = args.raw / fname
         if not path.exists():
             print("missing", path)
             continue
-        table = pq.read_table(path)
+        try:
+            if names is None:
+                names = hf_names(path)
+                print(f"{fname}: classes {names}")
+            table = pq.read_table(path)
+        except Exception as e:  # e.g. a download that is still in progress
+            print(f"skipping {fname}: {type(e).__name__}")
+            continue
         label_col = "label" if "label" in table.column_names else table.column_names[-1]
         images, labels = table.column("image"), table.column(label_col)
         order = list(range(table.num_rows))
@@ -127,8 +231,20 @@ def main():
         for i in order:
             lab = labels[i].as_py()
             src = names[lab] if isinstance(lab, int) else str(lab)
-            take(mapper(src), src, images[i].as_py()["bytes"], f"{path.stem}_{i}.jpg")
+            prefix = ("field_nolic_" if fname in NOLIC else "field_") if fname in FIELD else ""
+            take(mapper(src), src, images[i].as_py()["bytes"], f"{prefix}{path.stem}_{i}.jpg",
+                 re.sub(r"_\d+$", "", path.stem))
         print(f"read {fname}: {table.num_rows} rows")
+
+    village = args.raw / "tomato_village"
+    if village.exists():
+        files = sorted(f for f in village.rglob("*") if f.suffix.lower() in (".jpg", ".jpeg", ".png")
+                       and TOMATO_VILLAGE.get(f.parent.name))
+        random.shuffle(files)
+        for k, f in enumerate(files):
+            take(TOMATO_VILLAGE[f.parent.name], "", f.read_bytes(), f"field_nolic_tomato_village_{k}.jpg",
+                 "tomato_village")
+        print(f"read tomato_village: {len(files)} images")
 
     rice = args.raw / "rice.zip"
     if rice.exists():
@@ -143,7 +259,7 @@ def main():
 
     print("\nImages per class:")
     for c in sorted(counts):
-        print(f"  {c:40s} {counts[c]}")
+        print(f"  {c:40s} {counts[c]:4d}   ({field_counts[c]} field)")
     print(f"total {sum(counts.values())} images in {len(counts)} classes")
 
 
