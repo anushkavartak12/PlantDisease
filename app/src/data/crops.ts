@@ -61,67 +61,6 @@ const healthy = (crop: string): Condition => ({
 
 export const CROPS: Crop[] = [
   {
-    id: 'sugarcane',
-    emoji: '🎋',
-    name: t('Sugarcane', 'ऊस'),
-    grow: { days: 360, temp: [18, 30, 38], water: 2.5, season: 'kharif' },
-    conditions: [
-      healthy('sugarcane'),
-      {
-        id: 'sugarcane___red_rot',
-        name: t('Red rot', 'लाल कूज'),
-        symptoms: t(
-          'Leaves yellow and dry from the tip; the split cane shows red patches with white bands.',
-          'पाने टोकापासून पिवळी पडून वाळतात; ऊस चिरल्यावर आत पांढरे पट्टे असलेले लाल भाग दिसतात.',
-        ),
-        treatment: t(
-          'Plant disease-free setts, treat setts with carbendazim, uproot and burn infected clumps, rotate crops.',
-          'रोगमुक्त बेणे लावा, बेण्याला कार्बेन्डाझिमची प्रक्रिया करा, रोगट बेटे उपटून जाळा, पिकांची फेरपालट करा.',
-        ),
-        sim: { kind: 'fungal', temp: [22, 29, 35], hum: 80, wet: 0.9, color: '#b3372b', pattern: 'streaks' },
-      },
-      {
-        id: 'sugarcane___rust',
-        name: t('Rust', 'तांबेरा'),
-        symptoms: t(
-          'Small orange-brown pustules on the leaves that rub off as powder.',
-          'पानांवर लहान नारिंगी-तपकिरी पुटकुळ्या, ज्या घासल्यावर भुकटीसारख्या निघतात.',
-        ),
-        treatment: t(
-          'Grow resistant varieties; spray mancozeb or propiconazole when first seen.',
-          'प्रतिकारक्षम जाती लावा; लक्षणे दिसताच मॅन्कोझेब किंवा प्रोपिकोनाझोलची फवारणी करा.',
-        ),
-        sim: { kind: 'fungal', temp: [15, 22, 30], hum: 75, wet: 0.6, color: '#c8641e', pattern: 'pustules' },
-      },
-      {
-        id: 'sugarcane___mosaic',
-        name: t('Mosaic', 'मोझॅक'),
-        symptoms: t(
-          'Light and dark green patchy stripes on young leaves; stunted canes.',
-          'कोवळ्या पानांवर फिकट व गडद हिरव्या रंगाचे चट्टे; ऊस खुंटतो.',
-        ),
-        treatment: t(
-          'Use virus-free setts, control aphids, remove infected clumps early.',
-          'विषाणूमुक्त बेणे वापरा, मावा किडीचे नियंत्रण करा, रोगट बेटे लवकर काढा.',
-        ),
-        sim: { kind: 'viral', temp: [18, 25, 32], hum: 0, wet: 0, vector: 'aphid', color: '#c9d86a', pattern: 'mottle' },
-      },
-      {
-        id: 'sugarcane___yellow_leaf',
-        name: t('Yellow leaf disease', 'पिवळे पान रोग'),
-        symptoms: t(
-          'Midrib on the underside of leaves turns bright yellow, then the whole leaf yellows.',
-          'पानाच्या खालच्या बाजूची मध्यशिर पिवळी होते, नंतर संपूर्ण पान पिवळे पडते.',
-        ),
-        treatment: t(
-          'Use healthy tissue-culture setts and control aphids.',
-          'निरोगी ऊती-संवर्धित बेणे वापरा आणि मावा किडीचे नियंत्रण करा.',
-        ),
-        sim: { kind: 'viral', temp: [20, 27, 34], hum: 0, wet: 0, vector: 'aphid', color: '#f1d13c', pattern: 'streaks' },
-      },
-    ],
-  },
-  {
     id: 'cotton',
     emoji: '☁️',
     name: t('Cotton', 'कापूस'),
@@ -142,17 +81,17 @@ export const CROPS: Crop[] = [
         sim: { kind: 'bacterial', temp: [25, 32, 38], hum: 80, wet: 1, color: '#4a3526', pattern: 'patches' },
       },
       {
-        id: 'cotton___alternaria_leaf_spot',
-        name: t('Alternaria leaf spot', 'अल्टरनेरिया पानठिपके'),
+        id: 'cotton___leaf_curl',
+        name: t('Leaf curl virus', 'पर्णगुच्छ (लीफ कर्ल)'),
         symptoms: t(
-          'Brown round spots with rings like a target; leaves may drop.',
-          'पानांवर वलयांसारखे गोल तपकिरी ठिपके; पाने गळू शकतात.',
+          'Leaves curl upward or downward with thick dark veins and small leaf-like growths underneath. Spread by whitefly.',
+          'पाने वर किंवा खाली मुरडतात, शिरा जाड व गडद होतात, पानाखाली लहान पानासारख्या वाढी दिसतात. पांढरी माशी रोग पसरवते.',
         ),
         treatment: t(
-          'Remove fallen leaves, avoid overcrowding, spray mancozeb.',
-          'गळलेली पाने गोळा करून नष्ट करा, दाट लागवड टाळा, मॅन्कोझेबची फवारणी करा.',
+          'Grow tolerant varieties, control whitefly, remove weeds and infected plants early.',
+          'सहनशील जाती लावा, पांढऱ्या माशीचे नियंत्रण करा, तण व रोगट झाडे लवकर काढा.',
         ),
-        sim: { kind: 'fungal', temp: [20, 26, 32], hum: 80, wet: 0.7, color: '#7a4a24', pattern: 'rings' },
+        sim: { kind: 'viral', temp: [24, 32, 40], hum: 0, wet: 0, vector: 'whitefly', color: '#d8cf52', pattern: 'curl' },
       },
       {
         id: 'cotton___fusarium_wilt',
@@ -166,19 +105,6 @@ export const CROPS: Crop[] = [
           'प्रतिकारक्षम जाती लावा, पिकांची फेरपालट करा, जमिनीत ट्रायकोडर्मा मिसळा, पाणी साचू देऊ नका.',
         ),
         sim: { kind: 'soil', temp: [23, 28, 34], hum: 0, wet: 0.8, color: '#d9b43a', pattern: 'wilt' },
-      },
-      {
-        id: 'cotton___verticillium_wilt',
-        name: t('Verticillium wilt', 'व्हर्टिसिलियम मर'),
-        symptoms: t(
-          'Yellow patches between veins, leaves dry and fall; worse in cool, wet soil.',
-          'शिरांमधील भाग पिवळा होतो, पाने सुकून गळतात; थंड व ओलसर जमिनीत जास्त.',
-        ),
-        treatment: t(
-          'Crop rotation with cereals, balanced nitrogen, resistant varieties.',
-          'तृणधान्यांसोबत फेरपालट, संतुलित नत्र, प्रतिकारक्षम जाती.',
-        ),
-        sim: { kind: 'soil', temp: [18, 23, 28], hum: 0, wet: 0.7, nitrogen: 1, color: '#e0c24f', pattern: 'wilt' },
       },
     ],
   },
@@ -227,6 +153,41 @@ export const CROPS: Crop[] = [
           'प्रतिकारक्षम जाती, पिकांची फेरपालट, कार्बेन्डाझिम किंवा ॲझोक्सिस्ट्रोबिनची फवारणी.',
         ),
         sim: { kind: 'fungal', temp: [22, 27, 32], hum: 80, wet: 0.7, color: '#8a8a80', pattern: 'rings' },
+      },
+    ],
+  },
+  {
+    id: 'potato',
+    emoji: '🥔',
+    name: t('Potato', 'बटाटा'),
+    grow: { days: 100, temp: [12, 20, 28], water: 1.6, season: 'rabi' },
+    conditions: [
+      healthy('potato'),
+      {
+        id: 'potato___early_blight',
+        name: t('Early blight', 'लवकर येणारा करपा'),
+        symptoms: t(
+          'Dark brown spots with target-like rings on older leaves, with yellowing around them.',
+          'जुन्या पानांवर वर्तुळाकार वलये असलेले गडद तपकिरी ठिपके व भोवती पिवळेपणा.',
+        ),
+        treatment: t(
+          'Remove lower infected leaves, give balanced nitrogen and potash, spray mancozeb or chlorothalonil.',
+          'खालची रोगट पाने काढा, संतुलित नत्र व पालाश द्या, मॅन्कोझेब किंवा क्लोरोथॅलोनिलची फवारणी करा.',
+        ),
+        sim: { kind: 'fungal', temp: [18, 26, 32], hum: 75, wet: 0.6, nitrogen: -1, color: '#5e3d1f', pattern: 'rings' },
+      },
+      {
+        id: 'potato___late_blight',
+        name: t('Late blight', 'उशिरा येणारा करपा'),
+        symptoms: t(
+          'Dark water-soaked patches from the leaf tips and edges, white mould underneath in cool damp weather.',
+          'पानांच्या टोकांपासून व कडांपासून गडद पाणथळ चट्टे; थंड व दमट हवामानात पानाखाली पांढरी बुरशी.',
+        ),
+        treatment: t(
+          'Plant healthy seed tubers, earth up the rows, remove infected plants, spray metalaxyl + mancozeb or cymoxanil.',
+          'निरोगी बेणे बटाटे लावा, वरंब्यांना माती लावा, रोगट झाडे काढा, मेटॅलॅक्सिल + मॅन्कोझेब किंवा सायमोक्सॅनिलची फवारणी करा.',
+        ),
+        sim: { kind: 'fungal', temp: [10, 17, 24], hum: 88, wet: 1, color: '#33362a', pattern: 'patches' },
       },
     ],
   },

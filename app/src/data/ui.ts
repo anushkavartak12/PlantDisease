@@ -43,8 +43,8 @@ export const UI = {
     'हा माझा सर्वात जवळचा अंदाज आहे, पण पूर्ण खात्री नाही. दिवसाच्या प्रकाशात एकच पान फ्रेम भरून फोटो घेतल्यास मदत होईल.',
   ),
   notSupported: t(
-    'This may not be sugarcane, cotton, soybean, rice or tomato, the five crops I know. Here is the closest match.',
-    'हे ऊस, कापूस, सोयाबीन, भात किंवा टोमॅटो (मला माहित असलेली पाच पिके) नसावे. हा सर्वात जवळचा अंदाज आहे.',
+    'This may not be cotton, soybean, potato, rice or tomato, the five crops I know. Here is the closest match.',
+    'हे कापूस, सोयाबीन, बटाटा, भात किंवा टोमॅटो (मला माहित असलेली पाच पिके) नसावे. हा सर्वात जवळचा अंदाज आहे.',
   ),
   noCamera: t('Camera not available. Choose a photo instead.', 'कॅमेरा उपलब्ध नाही. त्याऐवजी फोटो निवडा.'),
   disclaimer: t(

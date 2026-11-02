@@ -110,7 +110,7 @@ function Leaf({ x, y, angle, len, width, seed, s, thirst, droop }: LeafProps) {
   );
 }
 
-/** Long grass blade (rice, sugarcane). */
+/** Long grass blade (rice). */
 function Blade({ x, y, angle, len, seed, s, thirst, droop, width = 5 }: LeafProps) {
   const bend = 0.35 + droop * 0.5;
   const dir = Math.cos((angle * Math.PI) / 180) >= 0 ? 1 : -1;
@@ -323,23 +323,32 @@ function Rice({ g, s, droop, thirst }: BodyProps) {
   );
 }
 
-function Sugarcane({ g, s, droop, thirst }: BodyProps) {
-  const h = 30 + g * 175;
+function Potato({ g, s, droop, thirst }: BodyProps) {
+  const h = 20 + g * 80;
+  const stems = 2 + Math.round(g * 3);
   return (
     <g>
-      {[-18, 0, 18].map((dx, c) => {
-        const ch = h * (0.85 + c * 0.08);
-        const segs = Math.max(1, Math.round(ch / 18));
-        const top = GROUND - ch;
+      {g > 0.75 &&
+        [-24, 4, 26].map((dx, k) => (
+          <ellipse key={k} cx={100 + dx} cy={GROUND + 4} rx={7 + k} ry={5} fill="#c9a26b" stroke="#8a6a3a" strokeWidth="1" />
+        ))}
+      {Array.from({ length: stems }, (_, i) => {
+        const ang = -90 + (i - (stems - 1) / 2) * 22;
+        const r = (ang * Math.PI) / 180;
+        const ex = 100 + Math.cos(r) * h;
+        const ey = GROUND + Math.sin(r) * h;
         return (
-          <g key={c}>
-            <rect x={100 + dx - 4} y={top} width="8" height={ch} rx="3" fill={g > 0.6 ? '#b7a14a' : '#8dbb4a'} />
-            {Array.from({ length: segs }, (_, i) => (
-              <line key={i} x1={100 + dx - 4} x2={100 + dx + 4} y1={GROUND - i * 18} y2={GROUND - i * 18} stroke="#6f7a2f" strokeWidth="1.5" />
-            ))}
-            {[-60, -110, -30, -150].map((a, k) => (
-              <Blade key={k} x={100 + dx} y={top + 4 + k * 6} angle={a} len={30 + g * 40} width={5} seed={c * 4 + k} s={s} thirst={thirst} droop={droop} />
-            ))}
+          <g key={i}>
+            <path d={`M100 ${GROUND} Q${100 + Math.cos(r) * h * 0.3} ${GROUND - h * 0.5} ${ex} ${ey}`} stroke="#5f8f2f" strokeWidth={2 + g * 1.5} fill="none" />
+            {[0.45, 0.7, 0.95].map((f, k) => {
+              const lx = 100 + (ex - 100) * f;
+              const ly = GROUND + (ey - GROUND) * f;
+              return [-1, 1].map((side) => (
+                <Leaf key={`${k}${side}`} x={lx} y={ly} angle={ang + side * 70} len={12 + g * 6} width={8} seed={i * 6 + k * 2 + side} s={s} thirst={thirst} droop={droop} />
+              ));
+            })}
+            <Leaf x={ex} y={ey} angle={ang} len={13 + g * 6} width={8} seed={i + 40} s={s} thirst={thirst} droop={droop} />
+            {g > 0.5 && g < 0.85 && <Flower x={ex} y={ey - 6} petal="#e8e0f5" />}
           </g>
         );
       })}
@@ -352,7 +361,7 @@ const BODIES: Record<string, (p: BodyProps) => JSX.Element> = {
   cotton: Cotton,
   soybean: Soybean,
   rice: Rice,
-  sugarcane: Sugarcane,
+  potato: Potato,
 };
 
 function Flower({ x, y, petal = '#ffd23f' }: { x: number; y: number; petal?: string }) {
