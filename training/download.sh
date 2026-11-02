@@ -38,8 +38,11 @@ get rice2_0.parquet       "$A/rice_leaf_disease_classification_2/resolve/main/da
 get rice2_1.parquet       "$A/rice_leaf_disease_classification_2/resolve/main/data/train-00001-of-00002.parquet"
 get ricebd2_0.parquet     "$A/rice_disease_classification_bangladesh/resolve/main/raw/train-00000-of-00002.parquet"
 get ricebd2_1.parquet     "$A/rice_disease_classification_bangladesh/resolve/main/raw/train-00001-of-00002.parquet"
+# soybean field photos (bacterial blight + healthy, 2.9 GB): the only field photos of a soybean disease
+for k in 0 1 2 3 4 5; do
+  get soybean2_$k.parquet "$A/soybean_leaf_disease_classification/resolve/main/data/train-0000$k-of-00006.parquet"
+done
 
 # Optional, low value per GB (prepare.py already knows them; they are skipped if missing):
 #   dhan_0/1.parquet     Dhan-Shomadhan rice, 669 MB:   .../Dhan-Shomadhan_rice_leaf_disease_classification/.../data/train-0000{0,1}-of-00002.parquet
 #   cotton2_0..2.parquet cotton field set, 1.3 GB for 132 images (partly synthetic): .../cotton_disease_classification/.../data/train-0000{0,1,2}-of-00003.parquet
-#   soybean2_0..5.parquet soybean bacterial blight + healthy, 2.9 GB: .../soybean_leaf_disease_classification/.../data/train-0000{0..5}-of-00006.parquet

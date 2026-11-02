@@ -134,7 +134,7 @@ button { font: inherit; color: inherit; }
 @keyframes wave { 50% { transform: rotate(-25deg); } }
 
 /* ---------- scanner ---------- */
-.viewfinder { position: relative; aspect-ratio: 3 / 4; max-height: 60vh; width: 100%; background: linear-gradient(160deg, var(--leaf-soft), var(--sun-soft)); border-radius: var(--radius); overflow: hidden; display: grid; place-items: center; box-shadow: var(--shadow); }
+.viewfinder { position: relative; aspect-ratio: 3 / 4; max-height: 72vh; width: 100%; background: linear-gradient(160deg, var(--leaf-soft), var(--sun-soft)); border-radius: var(--radius); overflow: hidden; display: grid; place-items: center; box-shadow: var(--shadow); }
 .viewfinder video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
 .viewfinder.on video { opacity: 1; }
 .placeholder { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 20px; text-align: center; color: var(--muted); }
@@ -145,13 +145,15 @@ label.secondary { display: block; }
 .analysing { text-align: center; }
 .leaf-spinner { font-size: 2.6rem; margin: 18px auto 0; animation: spin 1.2s linear infinite; width: 48px; }
 .shot-wrap { position: relative; }
-.shot { width: 100%; max-height: 340px; object-fit: cover; border-radius: var(--radius); display: block; box-shadow: var(--shadow); }
+/* the whole photo, as large as the screen allows (no cropping), so the farmer sees what was analysed */
+.shot { width: 100%; height: auto; max-height: 70vh; object-fit: contain; background: var(--leaf-soft); border-radius: var(--radius); display: block; box-shadow: var(--shadow); }
 .crop-tag { position: absolute; left: 12px; bottom: 12px; background: var(--card); border-radius: 999px; padding: 4px 12px; font-weight: 700; box-shadow: var(--shadow); }
 .demo-banner { background: var(--sun-soft); border: 2px dashed var(--sun); border-radius: 14px; padding: 10px 12px; margin: 0 0 12px; font-size: 0.9rem; }
 .verdict { margin-top: 16px; padding: 16px; border-radius: var(--radius); background: var(--card); border: 3px solid var(--line); }
 .verdict.ok { border-color: var(--leaf); background: var(--leaf-soft); }
 .verdict.bad { border-color: var(--turban); background: var(--turban-soft); }
 .verdict.unsure { background: var(--sun-soft); border-color: var(--sun); }
+.verdict .caution { margin: 0 0 12px; padding: 8px 12px; border-radius: 12px; background: var(--sun-soft); border: 2px dashed var(--sun); }
 .verdict-head { display: flex; gap: 12px; align-items: center; }
 .verdict-head > div { flex: 1; }
 .verdict h2 { margin: 0 0 6px; }

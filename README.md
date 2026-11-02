@@ -81,157 +81,96 @@ open the `https://<your-pc-ip>:5173` address it prints on your phone (same Wi-Fi
 ## How it works
 
 ```
- phone camera ──► centre crop 224×224 ──► MobileNetV3 (ONNX Runtime Web, WebGPU / WASM)
-                                              │
-                         ┌────────────────────┴──────────────────────┐
-                    logits (28)                          embedding (1280-d)
-                         │                                           │
-          condition + crop totals + confidence       cosine similarity vs 168 reference photos
-                         │                                           │
-                         └──────► result card (EN / मराठी, TTS) ◄────┘
+ phone camera ──► 3 views (centre crop, mirrored, whole photo)
+                        │
+                        ▼
+        router: MobileNetV3, 224 px ──► which crop? (5 crops or "other")
+                        │
+                        ▼  top crop (and the runner-up when the router gives it ≥ 20%)
+        crop specialist: MobileNetV3, 288 px ──► healthy or which disease
+                        │
+          ┌─────────────┴──────────────────┐
+     condition + confidence      embedding ──► closest of that crop's reference photos
+          │                                │
+          └──► result card (EN / मराठी, TTS) ◄┘
 ```
 
-- **Model:** MobileNetV3-Large (ImageNet-pretrained via `timm`), fine-tuned at 224 px with augmentation and label
-  smoothing, exported to ONNX (17 MB) with two outputs: `logits` and a normalised `embedding`.
-- **Reference database:** the 6 most typical validation photos per class, stored as thumbnails with int8-quantised
-  embeddings (`app/public/models/refs.json`), searched in the browser.
-- **Inference:** about 20 ms per photo on a laptop after the first load; it runs fully offline once the app is cached.
+The app runs in two steps, like a general doctor who sends you on to a specialist. A **router** model only decides
+which crop the leaf is from. That crop's **specialist** model then picks between that crop's own conditions, so it
+only has to learn the fine differences that matter for one plant. The confidence shown is
+P(crop) × P(condition | crop). All models run in the browser with ONNX Runtime Web (WebGPU, falling back to WASM).
+
+- **Models:** six MobileNetV3-Large networks (ImageNet-pretrained via `timm`): the router at 224 px and one
+  specialist per crop at 288 px, each starting from the router's weights. Trained with augmentation, label smoothing,
+  EMA weights and background swapping (below). Each is exported to ONNX with float16 weights (about 8.4 MB, 50 MB in
+  all) and two outputs: `logits` and a normalised `embedding`. `app/public/models/manifest.json` lists them.
+  Specialists load the first time their crop comes up.
+- **Reference database:** the 6 most typical validation photos per condition (162 in all), stored as thumbnails with
+  int8-quantised embeddings from that crop's specialist (`app/public/models/refs.json`), searched in the browser.
+- **Inference:** about 0.15 s per photo on a laptop once the models are loaded (about 1.5 s the first time a crop
+  comes up); it runs fully offline once the app is cached.
 - **Speech:** Web Speech API (`en-IN`, `mr-IN`, falling back to a Hindi voice for Devanagari when no Marathi voice is
   installed).
 
 ### Accuracy
-Held-out validation (2,118 images, split at random from the training data):
+Held-out validation: 3,874 photos split at random from the training data, the same photos for every model, scored
+the way the app runs (`training/evaluate.py`):
 
-| | Overall | Field photos only (824) |
+| | Overall | Field photos only (2,056) |
 |---|---|---|
-| Disease / condition | **94.5%** | **89.6%** |
-| Leaf type (which crop, or "other") | **98.5%** | **97.0%** |
+| Disease / condition | **97.0%** | **95.3%** |
+| Leaf type (which crop, or "other") | **99.5%** | **99.4%** |
 
-"Field photos" are phone-camera shots with real backgrounds (leaf still on the plant, soil, grass, hands).
-The previous model (trained mostly on plain-background photos) scored 98.7% on its own clean validation set but
-only **25.4% disease accuracy and 62.5% leaf-type accuracy on these same field photos**. That gap is why it could
-not read a leaf still on the plant. The current model is trained with real field photos from seven datasets and with
-**background swapping**: lab photos get their plain backdrop replaced by real field backgrounds during training.
-One run of 15 epochs on a local RTX 2050 (about 45 minutes).
+"Field photos" are phone-camera shots with real backgrounds (leaf still on the plant, soil, grass, hands), which is
+what the app really sees.
+
+For comparison, on the same photos a single 28-class model trained the same way scores 96.2% disease (94.1% on field
+photos), so the two-step design removes about a fifth of its field-photo mistakes. The earlier single model shipped
+in the app scored 89.6% on field photos (on an older, smaller validation set). Lab photos have their plain backdrop
+replaced by real field backgrounds during training (**background swapping**), so the model does not learn "plain
+background = this disease". All six models train in about 10 hours on a laptop RTX 2050 (`training/train_all.sh`).
 
 <details>
 <summary>Per-class validation accuracy</summary>
 
 | Crop | Condition | Accuracy |
 |---|---|---|
-| Cotton | alternaria leaf spot | 84.0% |
-| Cotton | bacterial blight | 98.6% |
-| Cotton | fusarium wilt | 100.0% |
+| Cotton | alternaria leaf spot | 100.0% |
+| Cotton | bacterial blight | 95.6% |
+| Cotton | fusarium wilt | 95.9% |
 | Cotton | healthy | 100.0% |
-| Cotton | verticillium wilt | 95.7% |
-| Other | unsupported plant | 86.7% |
-| Rice | bacterial leaf blight | 97.1% |
-| Rice | blast | 93.3% |
-| Rice | brown spot | 92.4% |
-| Rice | healthy | 100.0% |
-| Rice | tungro | 92.4% |
-| Soybean | bacterial blight | 97.9% |
-| Soybean | frogeye leaf spot | 95.7% |
-| Soybean | healthy | 96.2% |
-| Soybean | rust | 95.7% |
+| Cotton | verticillium wilt | 95.5% |
+| Other | unsupported plant | 91.8% |
+| Rice | bacterial leaf blight | 99.0% |
+| Rice | blast | 99.7% |
+| Rice | brown spot | 99.0% |
+| Rice | healthy | 98.3% |
+| Rice | tungro | 98.0% |
+| Soybean | bacterial blight | 100.0% |
+| Soybean | frogeye leaf spot | 83.3% |
+| Soybean | healthy | 99.0% |
+| Soybean | rust | 98.0% |
 | Sugarcane | healthy | 100.0% |
-| Sugarcane | mosaic | 95.8% |
-| Sugarcane | red rot | 98.1% |
-| Sugarcane | rust | 100.0% |
-| Sugarcane | yellow leaf | 96.6% |
-| Tomato | bacterial spot | 85.0% |
-| Tomato | early blight | 91.1% |
-| Tomato | healthy | 97.8% |
-| Tomato | late blight | 93.3% |
-| Tomato | leaf curl | 97.1% |
-| Tomato | leaf mold | 73.8% |
-| Tomato | mosaic virus | 78.9% |
-| Tomato | septoria leaf spot | 89.3% |
-</details>
-
-> ⚠️ **Honest limits.** Validation images are split at random from the same datasets as training, so near-duplicates
-> can inflate the score, and ~90% on field photos is an optimistic estimate of how it does on your own phone photos.
-> Cotton (fusarium, verticillium, alternaria), sugarcane (red rot, mosaic) and soybean (rust, frogeye, bacterial
-> blight) have **no field photos at all** and rely on background swapping, and tomato leaf mould, mosaic virus and
-> bacterial spot are the weakest conditions. The "other" class has no non-leaf examples (hands, soil), and the app
-> centre-crops, so fill the frame with one leaf. The app shows its confidence and asks for a retake when unsure.
-> It is a learning and first-aid tool, **not** a lab diagnosis: confirm with your local Krishi Vigyan Kendra before
-> spraying.
-
----|---|---|
-| Cotton | alternaria leaf spot | 84.0% |
-| Cotton | bacterial blight | 98.6% |
-| Cotton | fusarium wilt | 98.0% |
-| Cotton | healthy | 100.0% |
-| Cotton | verticillium wilt | 97.8% |
-| Other | unsupported plant | 94.7% |
-| Rice | bacterial leaf blight | 97.3% |
-| Rice | blast | 89.3% |
-| Rice | brown spot | 93.3% |
-| Rice | healthy | 100.0% |
-| Rice | tungro | 100.0% |
-| Soybean | bacterial blight | 100.0% |
-| Soybean | frogeye leaf spot | 100.0% |
-| Soybean | healthy | 97.3% |
-| Soybean | rust | 97.9% |
-| Sugarcane | healthy | 97.3% |
-| Sugarcane | mosaic | 100.0% |
-| Sugarcane | red rot | 92.6% |
-| Sugarcane | rust | 94.7% |
-| Sugarcane | yellow leaf | 97.3% |
-| Tomato | bacterial spot | 84.0% |
-| Tomato | early blight | 76.7% |
-| Tomato | healthy | 94.7% |
-| Tomato | late blight | 95.9% |
-| Tomato | leaf curl | 97.3% |
-| Tomato | leaf mold | 85.7% |
-| Tomato | mosaic virus | 73.7% |
-| Tomato | septoria leaf spot | 94.7% |
-</details>
-
-> ⚠️ **Honest limits.** Validation images are split at random from the same datasets as training, so near-duplicates
-> can inflate the score, and 87% on field photos is an optimistic estimate of how it does on your own phone photos.
-> Some classes (rice tungro, soybean rust/frogeye/bacterial blight, sugarcane red rot/mosaic, cotton fusarium/
-> verticillium/alternaria) have **no field photos at all** and rely on background swapping, which works on white-sheet
-> photos but does not yet trigger on PlantVillage's shadowed grey backdrops (most tomato training images). The "other" class has
-> no non-leaf examples (hands, soil), and the app centre-crops, so fill the frame with one leaf. The app shows its
-> confidence and asks for a retake when unsure. It is a learning and first-aid tool, **not** a lab diagnosis:
-> confirm with your local Krishi Vigyan Kendra before spraying.
-
----|---|---|
-| Cotton | alternaria leaf spot | 84.0% |
-| Cotton | bacterial blight | 96.9% |
-| Cotton | fusarium wilt | 98.0% |
-| Cotton | healthy | 100.0% |
-| Cotton | verticillium wilt | 95.7% |
-| Rice | bacterial leaf blight | 100.0% |
-| Rice | blast | 98.3% |
-| Rice | brown spot | 100.0% |
-| Rice | healthy | 100.0% |
-| Rice | tungro | 100.0% |
-| Soybean | bacterial blight | 100.0% |
-| Soybean | frogeye leaf spot | 100.0% |
-| Soybean | healthy | 100.0% |
-| Soybean | rust | 97.9% |
-| Sugarcane | healthy | 96.3% |
-| Sugarcane | mosaic | 91.7% |
-| Sugarcane | red rot | 98.1% |
-| Sugarcane | rust | 100.0% |
+| Sugarcane | mosaic | 97.9% |
+| Sugarcane | red rot | 100.0% |
+| Sugarcane | rust | 99.0% |
 | Sugarcane | yellow leaf | 100.0% |
-| Tomato | bacterial spot | 98.4% |
-| Tomato | early blight | 100.0% |
-| Tomato | healthy | 100.0% |
-| Tomato | late blight | 98.2% |
+| Tomato | bacterial spot | 83.3% |
+| Tomato | early blight | 91.7% |
+| Tomato | healthy | 98.2% |
+| Tomato | late blight | 94.9% |
 | Tomato | leaf curl | 98.3% |
-| Tomato | leaf mould | 96.4% |
-| Tomato | mosaic virus | 100.0% (only 74 images, so treat with caution) |
-| Tomato | septoria leaf spot | 100.0% |
-| Other | unsupported plant | 99.2% |
+| Tomato | leaf mold | 87.0% |
+| Tomato | mosaic virus | 78.9% |
+| Tomato | septoria leaf spot | 92.3% |
 </details>
 
-> ⚠️ **Honest limits.** Validation images come from the same datasets as training. Tomato photos are
-> PlantVillage lab shots on plain backgrounds, so real field photos will score lower than these numbers. The app
-> shows its confidence and asks for a retake when unsure. It is a learning and first-aid tool, **not** a lab
+> ⚠️ **Honest limits.** Validation images are split at random from the same datasets as training, so near-duplicates
+> can inflate the score, and 95% on field photos is an optimistic estimate of how it does on your own phone photos.
+> Cotton (fusarium, verticillium, alternaria) and sugarcane (red rot, mosaic) have **no field photos at all** and rely
+> on background swapping. Tomato mosaic virus, tomato bacterial spot and soybean frogeye leaf spot are the weakest
+> conditions (79–83%). The "other" class has no non-leaf examples (hands, soil), so fill the frame with one leaf. The
+> app shows its confidence and asks for a retake when unsure. It is a learning and first-aid tool, **not** a lab
 > diagnosis: confirm with your local Krishi Vigyan Kendra before spraying.
 
 ---
@@ -240,10 +179,12 @@ One run of 15 epochs on a local RTX 2050 (about 45 minutes).
 
 **Easiest: Google Colab (free GPU).** Open
 [`training/colab_train.ipynb` in Colab](https://colab.research.google.com/github/AadidevRaizada/PlantDisease/blob/main/training/colab_train.ipynb),
-choose *Runtime → T4 GPU*, *Run all* (about 30 minutes), then unzip the downloaded `plant_doctor_model.zip` into
-`app/public/`.
+choose *Runtime → T4 GPU*, *Run all*, then unzip the downloaded `plant_doctor_model.zip` into `app/public/`.
 
-Locally: see [training/README.md](training/README.md) (`download.sh` → `prepare.py` → `train.py` → `export.py`).
+Locally: `download.sh` → `prepare.py` → `masks.py` → `train_all.sh` (trains the router and the five specialists,
+scores them with `evaluate.py` and exports them with `export.py`; safe to re-run after a crash). See
+[training/README.md](training/README.md). Don't rebuild `data/images` while training runs: the models share one
+validation split.
 
 To add a crop or disease: add it to `app/src/data/crops.ts` (id `<crop>___<condition>`, English + Marathi text, and
 simulator settings), map a dataset label to that id in `training/prepare.py`, and retrain.
@@ -256,15 +197,16 @@ simulator settings), map a dataset label to that id in `training/prepare.py`, an
 app/                         React + Vite + TypeScript PWA
   src/data/crops.ts          crops, diseases, treatments, simulator settings (EN + मराठी)
   src/data/ui.ts             all interface text (EN + मराठी)
-  src/lib/classifier.ts      ONNX inference, crop totals, nearest reference photos
+  src/lib/classifier.ts      ONNX inference (router → crop specialist), nearest reference photos
   src/lib/tts.ts             text-to-speech
   src/lib/sound.ts           Web Audio synth (effects, rain, birds)
   src/game/sim.ts            weather → disease simulator
   src/game/Game.tsx          game screen
   src/components/            scanner, result, home, diary, SVG art (scene, farmer, plants)
-  public/models/             model.onnx, labels.json, refs.json, metrics.json
+  public/models/             manifest.json, router.onnx + one <crop>.onnx per crop, refs.json, metrics.json
   public/refs/               reference thumbnails
-training/                    download.sh, prepare.py, train.py, export.py, colab_train.ipynb
+training/                    download.sh, prepare.py, masks.py, train.py, train_all.sh, evaluate.py, export.py,
+                             colab_train.ipynb
 docs/screenshots/            images used in this README
 setup.bat / setup.sh         one-click local setup
 .github/workflows/deploy.yml GitHub Pages deployment

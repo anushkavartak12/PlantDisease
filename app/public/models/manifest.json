@@ -1,0 +1,73 @@
+{
+ "router": {
+  "file": "models/router.onnx",
+  "size": 224,
+  "labels": [
+   "cotton",
+   "other",
+   "rice",
+   "soybean",
+   "sugarcane",
+   "tomato"
+  ]
+ },
+ "specialists": {
+  "cotton": {
+   "file": "models/cotton.onnx",
+   "size": 288,
+   "labels": [
+    "cotton___alternaria_leaf_spot",
+    "cotton___bacterial_blight",
+    "cotton___fusarium_wilt",
+    "cotton___healthy",
+    "cotton___verticillium_wilt"
+   ]
+  },
+  "rice": {
+   "file": "models/rice.onnx",
+   "size": 288,
+   "labels": [
+    "rice___bacterial_leaf_blight",
+    "rice___blast",
+    "rice___brown_spot",
+    "rice___healthy",
+    "rice___tungro"
+   ]
+  },
+  "soybean": {
+   "file": "models/soybean.onnx",
+   "size": 288,
+   "labels": [
+    "soybean___bacterial_blight",
+    "soybean___frogeye_leaf_spot",
+    "soybean___healthy",
+    "soybean___rust"
+   ]
+  },
+  "sugarcane": {
+   "file": "models/sugarcane.onnx",
+   "size": 288,
+   "labels": [
+    "sugarcane___healthy",
+    "sugarcane___mosaic",
+    "sugarcane___red_rot",
+    "sugarcane___rust",
+    "sugarcane___yellow_leaf"
+   ]
+  },
+  "tomato": {
+   "file": "models/tomato.onnx",
+   "size": 288,
+   "labels": [
+    "tomato___bacterial_spot",
+    "tomato___early_blight",
+    "tomato___healthy",
+    "tomato___late_blight",
+    "tomato___leaf_curl",
+    "tomato___leaf_mold",
+    "tomato___mosaic_virus",
+    "tomato___septoria_leaf_spot"
+   ]
+  }
+ }
+}

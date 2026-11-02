@@ -20,7 +20,7 @@ from PIL import Image
 ROOT = Path(__file__).parent
 RAW = ROOT / "data" / "raw"
 OUT = ROOT / "data" / "images"
-SIZE = 256  # stored short side; training crops to 224
+SIZE = 320  # stored short side; the router trains at 224 px, the crop specialists at 288 px
 OTHER = "other___unsupported"
 
 PLANTVILLAGE_NAMES = [
@@ -158,6 +158,55 @@ PARQUETS = {
     "plantvillage.parquet": (PLANTVILLAGE_NAMES, pv_class),
 }
 
+# Round 3: field photos from Mendeley Data (CC BY 4.0, fetch with download_mendeley.py), stored as zips or folders.
+# raw subfolder -> {class folder name in the dataset: class id}
+FOLDER_SETS = {
+    "soya_mh": {"Soyabean_Rust": "soybean___rust", "Soyabean_Frog_Leaf_Eye": "soybean___frogeye_leaf_spot",
+                "Healthy_Soyabean": "soybean___healthy"},
+    "soya_multi": {"Rust": "soybean___rust", "Bacterial Blight": "soybean___bacterial_blight",
+                   "Healthy": "soybean___healthy"},
+    "tomato_pk": {"Tomato_Early_blight_leaf": "tomato___early_blight", "Tomato_leaf_late_blight": "tomato___late_blight",
+                  "Tomato_Septoria_leaf_spot": "tomato___septoria_leaf_spot", "Tomato_mold_leaf": "tomato___leaf_mold",
+                  "Tomato_leaf_yellow_curl_virus": "tomato___leaf_curl", "Tomato_Healthy_leaf": "tomato___healthy"},
+}
+IMAGE_EXT = (".jpg", ".jpeg", ".png")
+
+
+def folder_images(root: Path, classes: dict[str, str]):
+    """(class id, image bytes) for every image under root, in its zips or plain folders, labelled by the nearest
+    enclosing folder (or zip) whose name is in `classes`, compared without case, spaces or underscores."""
+    key = lambda s: re.sub(r"[^a-z]", "", s.lower())
+    lookup = {key(k): v for k, v in classes.items()}
+    find = lambda parts: next((lookup[key(p)] for p in reversed(parts) if key(p) in lookup), None)
+    for f in sorted(root.rglob("*")):
+        if f.suffix.lower() == ".zip":
+            with zipfile.ZipFile(f) as z:
+                for m in sorted(z.namelist()):
+                    # "Augmented" folders hold rotated/flipped copies of the raw photos: skip them
+                    if "augmented" in m.lower():
+                        continue
+                    if m.lower().endswith(IMAGE_EXT) and (cls := find([f.stem, *Path(m).parts[:-1]])):
+                        yield cls, z.read(m)
+        elif f.suffix.lower() in IMAGE_EXT and (cls := find(f.relative_to(root).parts[:-1])):
+            yield cls, f.read_bytes()
+
+
+def dhash(im: Image.Image) -> int:
+    g = im.convert("L").resize((9, 8), Image.BILINEAR)
+    px = list(g.getdata())
+    return sum(1 << i for i in range(64) if px[(i // 8) * 9 + i % 8] > px[(i // 8) * 9 + i % 8 + 1])
+
+
+# Photos kept aside to test the model on images it has never seen; near-copies of them are never trained on.
+HOLDOUT = ROOT.parent / "web_test_photos"
+HOLDOUT_HASHES = [dhash(Image.open(f)) for f in sorted(HOLDOUT.rglob("*.jpg"))] if HOLDOUT.exists() else []
+
+
+def is_holdout(im: Image.Image) -> bool:
+    h = dhash(im)
+    return any(bin(h ^ t).count("1") <= 8 for t in HOLDOUT_HASHES)
+
+
 RICE_FOLDERS = {
     "bacterialblight": "rice___bacterial_leaf_blight", "blast": "rice___blast", "brownspot": "rice___brown_spot",
     "healthy": "rice___healthy", "tungro": "rice___tungro",
@@ -168,6 +217,9 @@ def save(data: bytes, dest: Path) -> bool:
     try:
         im = Image.open(io.BytesIO(data)).convert("RGB")
     except Exception:
+        return False
+    if HOLDOUT_HASHES and is_holdout(im):
+        print("  left out (matches a web test photo):", dest.name)
         return False
     w, h = im.size
     s = SIZE / min(w, h)
@@ -180,7 +232,7 @@ def save(data: bytes, dest: Path) -> bool:
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--per-class", type=int, default=700)
+    ap.add_argument("--per-class", type=int, default=1200)
     ap.add_argument("--field-share", type=float, default=0.7, help="max fraction of a class taken from field photos")
     ap.add_argument("--other-per-label", type=int, default=20)
     ap.add_argument("--raw", type=Path, default=RAW)
@@ -193,23 +245,34 @@ def main():
     field_counts: dict[str, int] = defaultdict(int)
     source_counts: dict[tuple[str, str], int] = defaultdict(int)
 
-    def take(cls: str | None, src_label: str, data: bytes, name: str, group: str = "") -> None:
+    def claim(cls: str | None, src_label: str, name: str, group: str = "") -> bool:
+        """Whether this image fits the class, field and per-source quotas; if so it is counted."""
         if cls is None or counts[cls] >= args.per_class:
-            return
+            return False
         is_field = name.startswith("field_")
         if is_field:
             cap = args.per_class * args.field_share
             # no single dataset may fill more than half the field quota of a class
             if field_counts[cls] >= cap or source_counts[cls, group] >= cap / 2:
-                return
+                return False
         if cls == OTHER:
             if other_counts[src_label] >= args.other_per_label:
-                return
+                return False
             other_counts[src_label] += 1
-        if save(data, OUT / cls / name):
-            counts[cls] += 1
-            field_counts[cls] += is_field
-            source_counts[cls, group] += 1
+        counts[cls] += 1
+        field_counts[cls] += is_field
+        source_counts[cls, group] += 1
+        return True
+
+    def release(cls: str, name: str, group: str) -> None:
+        """Give back the slot of a claimed image that turned out to be unreadable."""
+        counts[cls] -= 1
+        field_counts[cls] -= name.startswith("field_")
+        source_counts[cls, group] -= 1
+
+    def take(cls: str | None, src_label: str, data: bytes, name: str, group: str = "") -> None:
+        if claim(cls, src_label, name, group) and not save(data, OUT / cls / name):
+            release(cls, name, group)
 
     for fname, (names, mapper) in PARQUETS.items():
         path = args.raw / fname
@@ -220,21 +283,33 @@ def main():
             if names is None:
                 names = hf_names(path)
                 print(f"{fname}: classes {names}")
-            table = pq.read_table(path)
+            pf = pq.ParquetFile(path)
+            label_col = "label" if "label" in pf.schema_arrow.names else pf.schema_arrow.names[-1]
+            labels = pf.read(columns=[label_col]).column(label_col).to_pylist()
         except Exception as e:  # e.g. a download that is still in progress
             print(f"skipping {fname}: {type(e).__name__}")
             continue
-        label_col = "label" if "label" in table.column_names else table.column_names[-1]
-        images, labels = table.column("image"), table.column(label_col)
-        order = list(range(table.num_rows))
+        # Choose rows from the labels alone (in random order), then stream only the chosen images: whole tables
+        # of images do not fit in memory on a small machine.
+        order = list(range(len(labels)))
         random.shuffle(order)
+        prefix = ("field_nolic_" if fname in NOLIC else "field_") if fname in FIELD else ""
+        group = re.sub(r"_\d+$", "", path.stem)
+        chosen = {}
         for i in order:
-            lab = labels[i].as_py()
-            src = names[lab] if isinstance(lab, int) else str(lab)
-            prefix = ("field_nolic_" if fname in NOLIC else "field_") if fname in FIELD else ""
-            take(mapper(src), src, images[i].as_py()["bytes"], f"{prefix}{path.stem}_{i}.jpg",
-                 re.sub(r"_\d+$", "", path.stem))
-        print(f"read {fname}: {table.num_rows} rows")
+            src = names[labels[i]] if isinstance(labels[i], int) else str(labels[i])
+            cls, name = mapper(src), f"{prefix}{path.stem}_{i}.jpg"
+            if claim(cls, src, name, group):
+                chosen[i] = (cls, name)
+        row = 0
+        for batch in pf.iter_batches(batch_size=32, columns=["image"]):
+            for img in batch.column("image").to_pylist():
+                if row in chosen:
+                    cls, name = chosen[row]
+                    if not save(img["bytes"], OUT / cls / name):
+                        release(cls, name, group)
+                row += 1
+        print(f"read {fname}: {len(labels)} rows, kept {len(chosen)}", flush=True)
 
     village = args.raw / "tomato_village"
     if village.exists():
@@ -245,6 +320,16 @@ def main():
             take(TOMATO_VILLAGE[f.parent.name], "", f.read_bytes(), f"field_nolic_tomato_village_{k}.jpg",
                  "tomato_village")
         print(f"read tomato_village: {len(files)} images")
+
+    for name, classes in FOLDER_SETS.items():
+        if not (args.raw / name).exists():
+            print("missing", args.raw / name)
+            continue
+        items = list(folder_images(args.raw / name, classes))
+        random.shuffle(items)
+        for k, (cls, data) in enumerate(items):
+            take(cls, "", data, f"field_{name}_{k}.jpg", name)
+        print(f"read {name}: {len(items)} images", flush=True)
 
     rice = args.raw / "rice.zip"
     if rice.exists():

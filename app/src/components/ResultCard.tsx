@@ -19,12 +19,14 @@ interface Props {
 
 export function ResultCard({ lang, image, diagnosis, demo, onReset }: Props) {
   const { predictions, crops, matches } = diagnosis;
-  const top = predictions[0];
-  const topCrop = crops[0];
+  // Always name the closest crop condition; low confidence or "other" only adds a caution.
+  const top = predictions.find((p) => CONDITION_INDEX.has(p.id)) ?? predictions[0];
   const hit = CONDITION_INDEX.get(top.id);
-  const unsupported = topCrop.id === OTHER_ID && topCrop.score >= 0.5;
+  const unsupported = crops[0].id === OTHER_ID && crops[0].score >= 0.5;
   const sure = !!hit && !unsupported && top.score >= MIN_CONFIDENCE;
+  const topCrop = crops.find((c) => c.id === hit?.crop.id) ?? crops[0];
   const cropInfo = CROP_INDEX.get(topCrop.id);
+  const caution = unsupported ? UI.notSupported[lang] : sure ? null : UI.lowConfidence[lang];
 
   useEffect(() => {
     if (!sure) return;
@@ -36,10 +38,10 @@ export function ResultCard({ lang, image, diagnosis, demo, onReset }: Props) {
   }, [sure, hit, demo]);
 
   function message() {
-    if (unsupported) return UI.notSupported[lang];
-    if (!hit || !sure) return UI.lowConfidence[lang];
+    if (!hit) return UI.notSupported[lang];
     const { crop, condition } = hit;
     return [
+      ...(caution ? [caution] : []),
       `${crop.name[lang]}: ${condition.name[lang]}.`,
       `${UI.symptoms[lang]}: ${condition.symptoms[lang]}`,
       `${UI.treatment[lang]}: ${condition.treatment[lang]}`,
@@ -51,15 +53,16 @@ export function ResultCard({ lang, image, diagnosis, demo, onReset }: Props) {
       {demo && <p className="demo-banner">{UI.demo[lang]}</p>}
       <div className="shot-wrap">
         <img className="shot" src={image} alt="" />
-        {cropInfo && !unsupported && (
+        {cropInfo && (
           <span className="crop-tag">
             {UI.cropFound[lang]}: {cropInfo.emoji} {cropInfo.name[lang]} · {Math.round(topCrop.score * 100)}%
           </span>
         )}
       </div>
 
-      {hit && sure ? (
+      {hit ? (
         <div className={`verdict ${hit.condition.healthy ? 'ok' : 'bad'}`}>
+          {caution && <p className="caution">⚠️ {caution}</p>}
           <div className="verdict-head">
             <Farmer size={48} mood={hit.condition.healthy ? 'cheer' : 'worried'} />
             <div>
@@ -79,7 +82,7 @@ export function ResultCard({ lang, image, diagnosis, demo, onReset }: Props) {
         <div className="verdict unsure">
           <div className="verdict-head">
             <Farmer size={48} mood="worried" />
-            <p>{unsupported ? UI.notSupported[lang] : UI.lowConfidence[lang]}</p>
+            <p>{UI.notSupported[lang]}</p>
           </div>
         </div>
       )}
@@ -108,7 +111,7 @@ export function ResultCard({ lang, image, diagnosis, demo, onReset }: Props) {
         <details>
           <summary>{UI.otherMatches[lang]}</summary>
           <ul>
-            {predictions.slice(1).map((p) => {
+            {predictions.filter((p) => p !== top).map((p) => {
               const h = CONDITION_INDEX.get(p.id);
               return (
                 <li key={p.id}>

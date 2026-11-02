@@ -19,7 +19,7 @@ export function CameraCapture({ lang, onCapture }: Props) {
   async function openCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'environment', width: { ideal: 1280 } },
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1440 } },
         audio: false,
       });
       streamRef.current = stream;

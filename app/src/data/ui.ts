@@ -39,12 +39,12 @@ export const UI = {
     'डेमो मोड: प्रशिक्षित मॉडेल नाही, निकाल यादृच्छिक आहेत.',
   ),
   lowConfidence: t(
-    'Hmm, I am not sure. Retake the photo with one leaf filling the frame, in daylight.',
-    'हम्म, खात्री नाही. दिवसाच्या प्रकाशात एकच पान फ्रेम भरून पुन्हा फोटो घ्या.',
+    'This is my best guess, but I am not fully sure. A photo of one leaf filling the frame, in daylight, will help.',
+    'हा माझा सर्वात जवळचा अंदाज आहे, पण पूर्ण खात्री नाही. दिवसाच्या प्रकाशात एकच पान फ्रेम भरून फोटो घेतल्यास मदत होईल.',
   ),
   notSupported: t(
-    'This doesn’t look like sugarcane, cotton, soybean, rice or tomato. I can only check those five crops for now.',
-    'हे ऊस, कापूस, सोयाबीन, भात किंवा टोमॅटोचे पान वाटत नाही. सध्या मी फक्त ही पाच पिके तपासू शकतो.',
+    'This may not be sugarcane, cotton, soybean, rice or tomato, the five crops I know. Here is the closest match.',
+    'हे ऊस, कापूस, सोयाबीन, भात किंवा टोमॅटो (मला माहित असलेली पाच पिके) नसावे. हा सर्वात जवळचा अंदाज आहे.',
   ),
   noCamera: t('Camera not available. Choose a photo instead.', 'कॅमेरा उपलब्ध नाही. त्याऐवजी फोटो निवडा.'),
   disclaimer: t(
