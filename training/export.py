@@ -98,6 +98,9 @@ def main():
     MODELS.mkdir(parents=True, exist_ok=True)
     for old in ("model.onnx", "labels.json"):  # the single-model app files
         (MODELS / old).unlink(missing_ok=True)
+    for old in MODELS.glob("*.onnx"):  # models of crops the app no longer covers
+        if old.stem not in ("router", *CROPS):
+            old.unlink()
     shutil.rmtree(REFS, ignore_errors=True)
     REFS.mkdir(parents=True)
 

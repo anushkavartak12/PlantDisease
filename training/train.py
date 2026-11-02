@@ -4,7 +4,7 @@ The app runs two stages, so there are six models:
 
     python train.py --task router --size 224              # which crop is this leaf? (5 crops + "other")
     python train.py --task tomato --size 288 --init runs/router/best.pt   # healthy or which disease, per crop
-    ... same for cotton, rice, soybean, sugarcane
+    ... same for cotton, potato, rice, soybean
     python train.py --task all                            # optional: the old single 28-class model, as a baseline
 
 All tasks use the same train/validation split, so evaluate.py can score the whole pipeline on unseen photos.
@@ -39,7 +39,7 @@ MASKS = ROOT / "data" / "masks"
 RUNS = ROOT / "runs"
 MEAN, STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
 ARCH = "mobilenetv3_large_100"
-CROPS = ["cotton", "rice", "soybean", "sugarcane", "tomato"]
+CROPS = ["cotton", "potato", "rice", "soybean", "tomato"]
 OTHER = "other"
 
 
@@ -264,6 +264,8 @@ def main():
     ap.add_argument("--init", type=Path, help="start from this checkpoint's backbone (e.g. the router)")
     ap.add_argument("--swap-p", type=float, default=0.6, help="chance a lab photo's leaf is put on a real background")
     ap.add_argument("--field-repeat", type=float, default=2, help="sampling weight of field photos vs lab photos")
+    ap.add_argument("--balance", type=float, default=0.5,
+                    help="sampling weight of a class ~ 1 / count**balance: 1 draws every class equally often")
     args = ap.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -289,9 +291,9 @@ def main():
     val_ds = Leaves([(p, y) for _, p, y in val_s], args.size, False)
     field_val = [k for k, (_, p, _) in enumerate(val_s) if is_field(p)]
 
-    # Balanced sampling: rare classes (e.g. cotton alternaria) are drawn more often, field photos more than lab.
+    # Balanced sampling: rare classes (e.g. soybean frogeye) are drawn more often, field photos more than lab.
     counts = Counter(y for _, _, y in train_s)
-    weights = [(args.field_repeat if is_field(p) else 1.0) / math.sqrt(counts[y]) for _, p, y in train_s]
+    weights = [(args.field_repeat if is_field(p) else 1.0) / counts[y] ** args.balance for _, p, y in train_s]
     n_draw = int(sum(args.field_repeat if is_field(p) else 1 for _, p, _ in train_s))
     sampler = WeightedRandomSampler(weights, n_draw, replacement=True)
     print(f"task {args.task}: {len(classes)} classes {classes}\n"

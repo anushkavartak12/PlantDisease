@@ -48,6 +48,9 @@ PV_MAP = {
     "Tomato___Tomato_mosaic_virus": "tomato___mosaic_virus",
     "Tomato___Leaf_Mold": "tomato___leaf_mold",
     "Soybean___healthy": "soybean___healthy",
+    "Potato___healthy": "potato___healthy",
+    "Potato___Early_blight": "potato___early_blight",
+    "Potato___Late_blight": "potato___late_blight",
 }
 
 
@@ -73,6 +76,7 @@ PD_MAP = {
     "Tomato leaf late blight": "tomato___late_blight", "Tomato leaf mosaic virus": "tomato___mosaic_virus",
     "Tomato leaf yellow virus": "tomato___leaf_curl", "Tomato mold leaf": "tomato___leaf_mold",
     "Soyabean leaf": "soybean___healthy",
+    "Potato leaf early blight": "potato___early_blight", "Potato leaf late blight": "potato___late_blight",
 }
 
 
@@ -93,15 +97,13 @@ FIELD = {
         "healthy": "rice___healthy", "leaf_blast": "rice___blast"}.get),
     "cotton_bd.parquet": (["Bacterial Blight", "Curl Virus", "Healthy Leaf", "Herbicide Growth Damage",
                            "Leaf Hopper Jassids", "Leaf Redding", "Leaf Variegation"], {
-        "Bacterial Blight": "cotton___bacterial_blight", "Healthy Leaf": "cotton___healthy"}.get),
+        "Bacterial Blight": "cotton___bacterial_blight", "Healthy Leaf": "cotton___healthy",
+        "Curl Virus": "cotton___leaf_curl"}.get),
+    # sugarcane is not a supported crop: a few of its leaves teach the router to answer "other"
     "sugarcane_2_0.parquet": (SUGARCANE2 := ["Banded Chlorosis", "Brown Spot", "BrownRust", "Dried", "Grassy shoot",
                                              "Healthy", "Pokkah Boeng", "Sett Rot", "Smut", "Viral Disease",
-                                             "Yellow Leaf"], {
-        "Healthy": "sugarcane___healthy", "BrownRust": "sugarcane___rust",
-        "Yellow Leaf": "sugarcane___yellow_leaf"}.get),
-    "sugarcane_2_1.parquet": (SUGARCANE2, {
-        "Healthy": "sugarcane___healthy", "BrownRust": "sugarcane___rust",
-        "Yellow Leaf": "sugarcane___yellow_leaf"}.get),
+                                             "Yellow Leaf"], lambda _: OTHER),
+    "sugarcane_2_1.parquet": (SUGARCANE2, lambda _: OTHER),
 }
 
 # Round 2. names=None: read the class names from the parquet's own Hugging Face metadata.
@@ -122,7 +124,7 @@ FIELD.update({
         "Brown Spot": "rice___brown_spot", "Browon Spot": "rice___brown_spot", "Rice Blast": "rice___blast",
         "Rice Tungro": "rice___tungro", "Rice Turgro": "rice___tungro"})) for k in (0, 1)},
     **{f"cotton2_{k}.parquet": (None, _m({
-        "Alternaria": "cotton___alternaria_leaf_spot", "Bacterial Blight": "cotton___bacterial_blight",
+        "Bacterial Blight": "cotton___bacterial_blight",
         "Healthy": "cotton___healthy"})) for k in (0, 1, 2)},
     **{f"soybean_br_{k}.parquet": (None, _m({"Healthy": "soybean___healthy"})) for k in (0, 1)},
     **{f"soybean2_{k}.parquet": (None, _m({
@@ -145,13 +147,10 @@ def hf_names(path: Path) -> list[str]:
 # parquet file -> (label names, label -> class id)
 PARQUETS = {
     **FIELD,
-    "sugarcane.parquet": (["Healthy", "Mosaic", "RedRot", "Rust", "Yellow"], {
-        "Healthy": "sugarcane___healthy", "RedRot": "sugarcane___red_rot", "Rust": "sugarcane___rust",
-        "Mosaic": "sugarcane___mosaic", "Yellow": "sugarcane___yellow_leaf"}.get),
+    "sugarcane.parquet": (["Healthy", "Mosaic", "RedRot", "Rust", "Yellow"], lambda _: OTHER),
     "cotton.parquet": (["Alternaria_Leaf", "Bacterial_Blight", "Fusarium_Wilt", "Healthy_Leaf", "Verticillium_Wilt"], {
         "Healthy_Leaf": "cotton___healthy", "Bacterial_Blight": "cotton___bacterial_blight",
-        "Alternaria_Leaf": "cotton___alternaria_leaf_spot", "Fusarium_Wilt": "cotton___fusarium_wilt",
-        "Verticillium_Wilt": "cotton___verticillium_wilt"}.get),
+        "Fusarium_Wilt": "cotton___fusarium_wilt"}.get),
     "soybean.parquet": (["Bacterial_blight", "Frogeye", "Healthy", "Soyabean_rust"], {
         "Healthy": "soybean___healthy", "Soyabean_rust": "soybean___rust",
         "Bacterial_blight": "soybean___bacterial_blight", "Frogeye": "soybean___frogeye_leaf_spot"}.get),
@@ -168,6 +167,13 @@ FOLDER_SETS = {
     "tomato_pk": {"Tomato_Early_blight_leaf": "tomato___early_blight", "Tomato_leaf_late_blight": "tomato___late_blight",
                   "Tomato_Septoria_leaf_spot": "tomato___septoria_leaf_spot", "Tomato_mold_leaf": "tomato___leaf_mold",
                   "Tomato_leaf_yellow_curl_virus": "tomato___leaf_curl", "Tomato_Healthy_leaf": "tomato___healthy"},
+    # round 4 (download_extra.py)
+    "potato_up": {"EB": "potato___early_blight", "LB": "potato___late_blight", "Healthy": "potato___healthy"},
+    "potato_id": {"Phytopthora": "potato___late_blight", "Healthy": "potato___healthy"},
+    "cotton_in": {"healthy": "cotton___healthy", "bacterial blight": "cotton___bacterial_blight",
+                  "fussarium wilt": "cotton___fusarium_wilt", "curl virus": "cotton___leaf_curl"},
+    "bugwood": {"soybean_frogeye": "soybean___frogeye_leaf_spot", "soybean_bacterial_blight": "soybean___bacterial_blight",
+                "soybean_rust": "soybean___rust", "cotton_bacterial_blight": "cotton___bacterial_blight"},
 }
 IMAGE_EXT = (".jpg", ".jpeg", ".png")
 

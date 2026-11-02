@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Train all six models, score the pipeline and export it to the app. Safe to re-run after a crash or restart:
+# Train the router and the five crop specialists, score the pipeline and export it to the app. Safe to re-run after a crash or restart:
 # finished models are skipped and an interrupted one resumes from its last epoch. Progress: logs/<task>.log
 set -e
 cd "$(dirname "$0")"
@@ -14,10 +14,10 @@ train() {  # task size epochs batch lr [extra args]
 }
 
 train router 224 10 48 6e-4
-for crop in cotton soybean sugarcane tomato rice; do
-  train "$crop" 288 14 32 5e-4 "--init runs/router/best.pt"
+for crop in cotton soybean potato tomato rice; do
+  # every condition drawn equally often, so a large healthy class does not swamp the diseases
+  train "$crop" 288 14 32 5e-4 "--init runs/router/best.pt --balance 1"
 done
-train all 224 10 48 6e-4  # the old single 28-class model, only as a baseline for evaluate.py
 $PY -u evaluate.py > logs/evaluate.log 2>&1
 $PY -u export.py > logs/export.log 2>&1
 echo "ALL_DONE $(date)" >> logs/evaluate.log

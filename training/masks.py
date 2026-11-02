@@ -17,10 +17,10 @@ ROOT = Path(__file__).parent
 DATA = ROOT / "data" / "images"
 MASKS = ROOT / "data" / "masks"
 WORK = 200  # px, longest side GrabCut runs at
-# Classes whose lab photos are leaves on a plain sheet or table (cotton, PlantVillage tomato and "other", white-sheet
+# Classes whose lab photos are leaves on a plain sheet or table (cotton, PlantVillage tomato, potato and "other", white-sheet
 # rice and PlantVillage soybean healthy). The other lab sets are already shot in the field, where a cut-out would
 # only lose part of the leaf.
-PLAIN = ("cotton___", "tomato___", "other___", "rice___healthy", "soybean___healthy")
+PLAIN = ("cotton___", "tomato___", "potato___", "other___", "rice___healthy", "soybean___healthy")
 
 
 def plain_backdrop(lab: np.ndarray) -> np.ndarray | None:
